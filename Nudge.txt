@@ -1,0 +1,60 @@
+function sendNudge() {
+  ScriptApp.newTrigger('sendEmail')
+    .timeBased()
+    .everyDays(1)
+    .atHour(10)
+    .nearMinute(30)
+    .create();
+}
+
+function sendNudgeEveryFourHours() {
+  ScriptApp.newTrigger('sendEmail')
+    .timeBased()
+    .everyHours(4)
+    .create();
+}
+
+function sendEmail() {
+  var events = CalendarApp.getDefaultCalendar().getEventsForDay(new Date());
+  for (var i = 0; i < events.length; i++) {
+    var event = events[i];
+    if (event.isOwnedByMe()) {
+      var guestList = event.getGuestList(false);
+      var emailList = [];
+      var meetingName = event.getTitle();
+      var meetingID = event.getId().split('@')[0];
+      for (var j = 0; j < guestList.length; j++) {
+        var guest = guestList[j];
+        if (guest.getGuestStatus() == 'INVITED') {
+          var guestMail = guest.getEmail();
+          emailList.push(guestMail);
+          var eventID = Utilities.base64Encode(meetingID + ' ' + guestMail);
+          var meetingLink = 'https://www.google.com/calendar/render?action=VIEW&eid=' + eventID;
+          var meetingTime = Utilities.formatDate(
+            new Date(event.getStartTime()),
+            Session.getScriptTimeZone(),
+            'HHmm'
+          );
+          var msgSubject = 'Reminder for ' + meetingName + ' at: ' + meetingTime + ' hrs.';
+          var msgBody = 'Hi there!\n\n'
+            + 'Seems like you accidentally missed your invite for' + meetingName
+            + ".\n\n No worries, here's your link to join " + meetingLink;
+          msgBody = msgBody + '\n\nHope to see you there.\n\n'
+          GmailApp.sendEmail(
+            guestMail,
+            msgSubject,
+            msgBody
+          );
+        }
+      }
+      var body = 'Hello! This is Nudge.\n\n'
+        + 'You gave me a task to remind your group about the upcoming event:' + meetingName +
+        '.\n I have sent the reminder to the following invitees: ' + emailList;
+      GmailApp.sendEmail(
+        Session.getActiveUser().getEmail(),
+        'Reminder emails for ' + meetingName + ' has been send.',
+        body,
+      );
+    }
+  }
+}
